@@ -51,6 +51,20 @@ class Heatmap:
                 self.step_cumulative_visits(t, filename)
         self.filenames = glob(path.join(self.time_evol_dir, "*.pickle"))
 
+    def update_grid(self):
+
+        self.grid = Grid(self.filenames)
+        self._add_grid_indices()
+
+    def _add_grid_indices(self):
+        for fname in self.filenames:
+            df = pd.read_pickle(fname)
+            df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_indices(
+                df["latitude"], df["longitude"]
+            )
+            df.to_pickle(fname)
+
+
     def step_cumulative_visits(self, t, filename):
         df_t = self.df_all[self.df_all.index == t][["lat_inds", "lon_inds"]]
         cell_visits_t = df_t.groupby(["lat_inds", "lon_inds"]).size()
@@ -109,11 +123,6 @@ class Activities:
     	pass
 
 
-    def update_grid(self):
-
-        self.grid = Grid(self.filenames)
-        self._add_grid_indices()
-
     def pickle_raw_gps_data(self, ext, low_speed_threshold=1):
         """
         Process and convert raw GPS data with extension ".gpx" or 
@@ -139,14 +148,6 @@ class Activities:
                     )
                 else:
                     df.to_pickle(df_path)
-
-    def _add_grid_indices(self):
-        for fname in self.filenames:
-            df = pd.read_pickle(fname)
-            df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_indices(
-                df["latitude"], df["longitude"]
-            )
-            df.to_pickle(fname)
 
 
 class Grid:
@@ -198,6 +199,13 @@ class Grid:
         return lat_inds, lon_inds
 
 
-hm = Heatmap("jack")
-ani = Animation(hm)
-data = ani.plot_frame(30)
+
+# j = Activities("Jack")
+# t = Activities("Tenzin")
+# hm = Heatmap("Jack", "Tenzin")
+# a = Activities("Anika")
+# hm.add(a)
+# hm.update_grid()
+# hm.animate()
+# hm.plot_final_frame()
+
