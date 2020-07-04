@@ -3,7 +3,6 @@ import numpy as np
 from glob import glob
 import os
 import math
-import gpxpy
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import geometry as geo
@@ -75,7 +74,7 @@ class Activities:
 
         self.raw_data_path = path.join("data", name, "raw")
         self.excluded_raw_data = path.join(self.raw_data_path, "exclude")
-        self.pickle_paths = path.join("data", name, "pickles")
+        self.pickle_paths = path.join("data", "pickles")
         self.raw_file_types = ["gpx", "tcx"]
 
         for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
@@ -173,15 +172,9 @@ class Grid:
             "lon": np.ceil(1.1 * dlon / cell_size_deg["lon"]).astype(int),
         }
         span = {
-            "lat": (
-                lat_min_temp - 0.05 * dlat,
-                num_cells["lat"] * cell_size_deg["lat"] + lat_min_temp - 0.05 * dlat,
-            ),
-            "lon": (
-                lon_min_temp - 0.05 * dlon,
-                num_cells["lon"] * cell_size_deg["lon"] + lon_min_temp - 0.05 * dlon,
-            ),
-            "time": df_all.index.max(),
+        	"lat": geo.get_1d_span(lat_min_temp - 0.05 * dlat, cell_size_deg["lat"], num_cells["lat"])
+        	"lon": geo.get_1d_span(lon_min_temp - 0.05 * dlon, cell_size_deg["lon"], num_cells["lon"])
+        	"time": df_all.index.max(),
         }
 
         return span, num_cells, cell_size_deg
