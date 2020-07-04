@@ -6,7 +6,7 @@ from os import path, makedirs
 import gpxpy
 import tcxparser
 
-from geometry import get_speed
+from geometry import add_speed_column
 
 
 def convert_raw(raw_data_path, dataframe_path):
@@ -69,7 +69,7 @@ def tcx_to_dataframe(filename):
 
 def clean(df):
     """Remove pauses, and return only the required columns"""
-    df = get_speed(df)
+    df = add_speed_column(df)
     df.index = df.index.round("S")
     df = df.reset_index()
     df["delta"] = (df["time"] - df["time"].shift()).fillna(
