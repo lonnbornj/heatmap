@@ -39,7 +39,7 @@ def dist_to_dlon(dist, dlat_mean):
 
 
 def get_1d_span(minimum, cell_size, num_cells):
-    return (minimum, minimum + cell_size*num_cells)
+    return (minimum, minimum + cell_size * num_cells)
 
 
 def get_speed(df):

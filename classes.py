@@ -64,7 +64,6 @@ class Heatmap:
             )
             df.to_pickle(fname)
 
-
     def step_cumulative_visits(self, t, filename):
         df_t = self.df_all[self.df_all.index == t][["lat_inds", "lon_inds"]]
         cell_visits_t = df_t.groupby(["lat_inds", "lon_inds"]).size()
@@ -85,16 +84,17 @@ class Activities:
     """
 
     pickle_path = path.join("data", "pickles")
-    def __init__(self, names):
 
-    	self.name = [names]
+    def __init__(self, name):
+
+        self.name = name
         self.raw_data_path = path.join("data", self.name, "raw")
         self.excluded_raw_data = path.join(self.raw_data_path, "exclude")
         self.raw_file_types = ["gpx", "tcx"]
 
         self._setup_directory_structure()
-        self._create_pickles()
-        
+        self._create_dataframes()
+
         self.filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
         assert (
             self.filenames
@@ -104,15 +104,14 @@ class Activities:
 
     def _setup_directory_structure(self):
         for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
-    	    if not path.exists(d):
-	            makedirs(d)
+            if not path.exists(d):
+                makedirs(d)
 
-    def _create_pickles():
+    def _create_dataframes():
         for extension in self.raw_file_types:
             for f in glob(path.join("data", name, "*." + extension)):
                 rename(f, path.join(self.raw_data_path, path.basename(f)))
             self._pickle_raw_gps_data(extension)
-
 
     def _pickle_raw_gps_data(self, ext, low_speed_threshold=1):
         """
@@ -122,10 +121,12 @@ class Activities:
 
         files = glob(path.join(self.raw_data_path, "*." + ext))
         for i, raw_data_path in enumerate(files):
-            dataframe_basename = self.name + path.basename(raw_data_path.replace(ext, "pickle"))
+            dataframe_basename = self.name + path.basename(
+                raw_data_path.replace(ext, "pickle")
+            )
             dataframe_path = path.join(self.pickle_path, dataframe_basename)
             if not path.isfile(df_path):
-        		convert.convert_raw(raw_data_path, dataframe_path)
+                convert.convert_raw(raw_data_path, dataframe_path)
 
 
 class Grid:
@@ -133,40 +134,8 @@ class Grid:
 
         self.activity_filenames = activity_filenames
         self.cell_size_m = cell_size_m
-        self.span, self.num_cells, self.cell_size_deg = self.spacetime_span()
-        self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
-
-    def spacetime_span(self):
-
-        df_all = pd.concat(pd.read_pickle(fname) for fname in self.activity_filenames)
-
-        lat_min_temp, lat_max_temp, lon_min_temp, lon_max_temp = (
-            df_all["latitude"].min(),
-            df_all["latitude"].max(),
-            df_all["longitude"].min(),
-            df_all["longitude"].max(),
-        )
-        cell_size_deg = {
-            "lat": geo.dist_to_dlat(self.cell_size_m),
-            "lon": geo.dist_to_dlon(
-                self.cell_size_m, np.mean([lat_min_temp, lat_max_temp])
-            ),
-        }
-        dlat, dlon = (
-            np.abs(lat_max_temp - lat_min_temp),
-            np.abs(lon_max_temp - lon_min_temp),
-        )
-        num_cells = {
-            "lat": np.ceil(1.1 * dlat / cell_size_deg["lat"]).astype(int),
-            "lon": np.ceil(1.1 * dlon / cell_size_deg["lon"]).astype(int),
-        }
-        span = {
-        	"lat": geo.get_1d_span(lat_min_temp - 0.05 * dlat, cell_size_deg["lat"], num_cells["lat"])
-        	"lon": geo.get_1d_span(lon_min_temp - 0.05 * dlon, cell_size_deg["lon"], num_cells["lon"])
-        	"time": df_all.index.max(),
-        }
-
-        return span, num_cells, cell_size_deg
+        # self.span, self.num_cells, self.cell_size_deg = self.spacetime_span()
+        # self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
 
     def latlon_to_indices(self, lats, lons):
 
@@ -176,6 +145,41 @@ class Grid:
         lon_inds = np.floor(dlons / self.cell_size_deg["lon"]).astype(int)
         return lat_inds, lon_inds
 
+    def spacetime_span(self):
+
+        df_all = pd.concat(pd.read_pickle(fname) for fname in self.activity_filenames)
+
+        cell_size_deg = {
+            "lat": geo.dist_to_dlat(self.cell_size_m),
+            "lon": geo.dist_to_dlon(
+                self.cell_size_m, np.mean([lat_min_temp, lat_max_temp])
+            ),
+        }
+        num_cells = {
+            "lat": np.ceil(1.1 * dlat / cell_size_deg["lat"]).astype(int),
+            "lon": np.ceil(1.1 * dlon / cell_size_deg["lon"]).astype(int),
+        }
+        span = {
+            "lat": geo.get_1d_span(
+                lat_min_temp - 0.05 * dlat, cell_size_deg["lat"], num_cells["lat"]
+            ),
+            "lon": geo.get_1d_span(
+                lon_min_temp - 0.05 * dlon, cell_size_deg["lon"], num_cells["lon"]
+            ),
+            "time": df_all.index.max(),
+        }
+
+        return span, num_cells, cell_size_deg
+
+    def _span_no_margin(df_all):
+        span = dict()
+        span["lat"] = (df_all["latitude"].min(), df_all["latitude"].max())
+        span["lon"] = (df_all["longitude"].min(), df_all["longitude"].max())
+        dlat, dlon = (
+            np.abs(span["lat"][1] - span["lat"][0]),
+            np.abs(span["lon"][1] - span["lon"][0]),
+        )
+        return span, dlat, dlon
 
 
 # j = Activities("Jack")
@@ -186,4 +190,3 @@ class Grid:
 # hm.update_grid()
 # hm.animate()
 # hm.plot_final_frame()
-
