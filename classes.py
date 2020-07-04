@@ -94,25 +94,13 @@ class Activities:
 
         self._setup_directory_structure()
         self._create_pickles()
-
-
-        for extension in self.raw_file_types:
-            for f in glob(path.join("data", name, "*." + extension)):
-                rename(f, path.join(self.raw_data_path, path.basename(f)))
-            self.pickle_raw_gps_data(extension)
-
+        
         self.filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
-
         assert (
             self.filenames
         ), "No GPS data found found. Place .gpx/.tcx files in {}".format(
             path.join("data", name)
         )
-
-    # def __add__(self, other):
-
-    # 	name = self.raw_data_path.split(os.sep)[-2] + other.raw_data_path.split(os.sep)[-2]
-    # 	pickle_paths
 
     def _setup_directory_structure(self):
         for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
@@ -120,34 +108,24 @@ class Activities:
 	            makedirs(d)
 
     def _create_pickles():
-    	pass
+        for extension in self.raw_file_types:
+            for f in glob(path.join("data", name, "*." + extension)):
+                rename(f, path.join(self.raw_data_path, path.basename(f)))
+            self._pickle_raw_gps_data(extension)
 
 
-    def pickle_raw_gps_data(self, ext, low_speed_threshold=1):
+    def _pickle_raw_gps_data(self, ext, low_speed_threshold=1):
         """
         Process and convert raw GPS data with extension ".gpx" or 
         ".tcx" to a pandas dataframe, and save as a .pickle file.
         """
 
         files = glob(path.join(self.raw_data_path, "*." + ext))
-        for i, fname in enumerate(files):
-            df_basename = path.basename(fname.replace(ext, "pickle"))
-            df_path = path.join(self.pickle_path, df_basename)
-
+        for i, raw_data_path in enumerate(files):
+            dataframe_basename = self.name + path.basename(raw_data_path.replace(ext, "pickle"))
+            dataframe_path = path.join(self.pickle_path, dataframe_basename)
             if not path.isfile(df_path):
-
-                print("processing {}".format(path.basename(fname)))
-                df = (
-                    convert.gpx_to_dataframe(fname)
-                    if ext == "gpx"
-                    else convert.tcx_to_dataframe(fname)
-                )
-                if df is None:
-                    rename(
-                        fname, path.join(self.excluded_raw_data, path.basename(fname))
-                    )
-                else:
-                    df.to_pickle(df_path)
+        		convert.convert_raw(raw_data_path, dataframe_path)
 
 
 class Grid:

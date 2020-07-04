@@ -8,6 +8,19 @@ import tcxparser
 
 from geometry import get_speed
 
+def convert_raw(raw_data_path, dataframe_path):
+    print("processing {}".format(path.basename(raw_data_path)))
+    df = (
+        convert.gpx_to_dataframe(raw_data_path)
+        if ext == "gpx"
+        else convert.tcx_to_dataframe(raw_data_path)
+    )
+    if df is None:
+        rename(
+            raw_data_path, path.join(self.excluded_raw_data, path.basename(raw_data_path))
+        )
+    else:
+        df.to_pickle(df_path)
 
 def gpx_to_dataframe(filename):
 
