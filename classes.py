@@ -70,23 +70,24 @@ class Activities:
     processed a .gpx or .tcx file containing raw GPS data.
     """
 
-    def __init__(self, name):
+    pickle_path = path.join("data", "pickles")
+    def __init__(self, names):
 
-        self.raw_data_path = path.join("data", name, "raw")
+    	self.name = [names]
+        self.raw_data_path = path.join("data", self.name, "raw")
         self.excluded_raw_data = path.join(self.raw_data_path, "exclude")
-        self.pickle_paths = path.join("data", "pickles")
         self.raw_file_types = ["gpx", "tcx"]
 
-        for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
-            if not path.exists(d):
-                makedirs(d)
+        self._setup_directory_structure()
+        self._create_pickles()
+
 
         for extension in self.raw_file_types:
             for f in glob(path.join("data", name, "*." + extension)):
                 rename(f, path.join(self.raw_data_path, path.basename(f)))
             self.pickle_raw_gps_data(extension)
 
-        self.filenames = glob(path.join(self.pickle_path, "*.pickle"))
+        self.filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
 
         assert (
             self.filenames
@@ -98,6 +99,15 @@ class Activities:
 
     # 	name = self.raw_data_path.split(os.sep)[-2] + other.raw_data_path.split(os.sep)[-2]
     # 	pickle_paths
+
+    def _setup_directory_structure(self):
+        for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
+    	    if not path.exists(d):
+	            makedirs(d)
+
+    def _create_pickles():
+    	pass
+
 
     def update_grid(self):
 
