@@ -38,8 +38,16 @@ def dist_to_dlon(dist, dlat_mean):
     return math.degrees(2 * x)
 
 
+def cell_size_deg(latitude):
+    return {
+        "lat": geo.dist_to_dlat(self.cell_size_m),
+        "lon": geo.dist_to_dlon(self.cell_size_m, latitude),
+    }
+
+
 def add_speed_column(df):
 
+    # todo: work out what the reindexing is doing and move it out of this fn
     df["time"] = pd.to_datetime(df["time"])
     df = df.set_index("time")
     columns = df.columns.tolist()

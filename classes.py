@@ -59,7 +59,7 @@ class Heatmap:
     def _add_grid_indices(self):
         for fname in self.filenames:
             df = pd.read_pickle(fname)
-            df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_indices(
+            df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_grid_indices(
                 df["latitude"], df["longitude"]
             )
             df.to_pickle(fname)
@@ -134,52 +134,77 @@ class Grid:
 
         self.activity_filenames = activity_filenames
         self.cell_size_m = cell_size_m
-        # self.span, self.num_cells, self.cell_size_deg = self.spacetime_span()
-        # self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
+        self.set_spacetime_properties()
+        self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
 
-    def latlon_to_indices(self, lats, lons):
+    def set_spacetime_properties(self, margin_size=0.05):
 
-        dlats = np.abs(self.span["lat"][0] - lats)
-        dlons = np.abs(self.span["lon"][0] - lons)
+        df_all = pd.concat(pd.read_pickle(fname) for fname in self.activity_filenames)
+        span_no_margin = _span_no_margin(df_all)
+
+        self.cell_size_deg = geo.cell_size_deg(
+            self.cell_size_m, latitude=np.mean([*span_no_margin["lat"].values()])
+        )
+        self.num_cells = _num_cells(span_no_margin, margin_size, self.cell_size_deg)
+        self.span = _span_with_margin(span_no_margin, margin_size)
+
+    def latlon_to_grid_indices(self, lats, lons):
+
+        dlats = lats - self.span["lat"]["min"]
+        dlons = lons - self.span["lon"]["min"]
+        assert (
+            all(dlats) > 0 and all(dlons) > 0
+        ), "latlon passed which is outside grid domain"
+
         lat_inds = np.floor(dlats / self.cell_size_deg["lat"]).astype(int)
         lon_inds = np.floor(dlons / self.cell_size_deg["lon"]).astype(int)
         return lat_inds, lon_inds
 
-    def spacetime_span(self):
-
-        df_all = pd.concat(pd.read_pickle(fname) for fname in self.activity_filenames)
-
-        cell_size_deg = {
-            "lat": geo.dist_to_dlat(self.cell_size_m),
-            "lon": geo.dist_to_dlon(
-                self.cell_size_m, np.mean([lat_min_temp, lat_max_temp])
+    def _num_cells(span_no_margin, margin_size, cell_size_deg):
+        return {
+            "lat": np.ceil(
+                (1 + 2 * margin_size) * dlat / self.cell_size_deg["lat"]
+            ).astype(int),
+            "lon": np.ceil((1 + 2 * margin_size) * dlon / cell_size_deg["lon"]).astype(
+                int
             ),
         }
-        num_cells = {
-            "lat": np.ceil(1.1 * dlat / cell_size_deg["lat"]).astype(int),
-            "lon": np.ceil(1.1 * dlon / cell_size_deg["lon"]).astype(int),
-        }
-        span = {
-            "lat": geo.get_1d_span(
-                lat_min_temp - 0.05 * dlat, cell_size_deg["lat"], num_cells["lat"]
-            ),
-            "lon": geo.get_1d_span(
-                lon_min_temp - 0.05 * dlon, cell_size_deg["lon"], num_cells["lon"]
-            ),
-            "time": df_all.index.max(),
-        }
-
-        return span, num_cells, cell_size_deg
 
     def _span_no_margin(df_all):
         span = dict()
-        span["lat"] = (df_all["latitude"].min(), df_all["latitude"].max())
-        span["lon"] = (df_all["longitude"].min(), df_all["longitude"].max())
-        dlat, dlon = (
-            np.abs(span["lat"][1] - span["lat"][0]),
-            np.abs(span["lon"][1] - span["lon"][0]),
+        span["lat"] = {"min": df_all["latitude"].min(), "max": df_all["latitude"].max()}
+        span["lon"] = {
+            "min": df_all["longitude"].min(),
+            "max": df_all["longitude"].max(),
+        }
+        span["time"] = {"min": 0, "max": df_all.index.max()}
+        return span
+
+    def _span_with_margin(span_no_margin, margin_size):
+        def get_1d_span(minimum, cell_size, num_cells):
+            return {"min": minimum, "max": minimum + cell_size * num_cells}
+
+        dlat, dlon = self._latlon_delta(span_no_margin)
+        span = {
+            "lat": get_1d_span(
+                span_no_margin["lat"]["min"] - margin_size * dlat,
+                self.cell_size_deg["lat"],
+                self.num_cells["lat"],
+            ),
+            "lon": get_1d_span(
+                span_no_margin["lon"]["min"] - margin_size * dlon,
+                self.cell_size_deg["lon"],
+                self.num_cells["lon"],
+            ),
+            "time": span_no_margin["time"]
+        }
+        return span
+
+    def _latlon_delta(span):
+        return (
+            np.abs(span["lat"]["max"] - span["lon"]["min"]),
+            np.abs(span["lon"]["max"] - span["lon"]["min"]),
         )
-        return span, dlat, dlon
 
 
 # j = Activities("Jack")
