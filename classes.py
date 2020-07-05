@@ -55,20 +55,26 @@ class Heatmap:
             for i in span["time"]["max"]
         ]
         for t, fname in enumerate(filenames):
-            _step_cumulative_heat(t, fname)
+            _next_cumulative_heat(t, fname)
         return cumulative_visits
 
-    def _step_cumulative_heat(self, t, filename):
-        if not path.isfile(filename):
-            delta_heat_of_cells = self.delta_heat(t)
-            self.cumulative_visits = pd.concat(
-                [self.cumulative_visits, cell_visits_t], axis=1
-            ).sum(axis=1)
-            self.cumulative_visits.to_pickle(filename)
-        else:
-            self.cumulative_visits = read_pickle(filename)
+    def _next_cumulative_heat(self, filename):
+        for time_index in range(self.grid.span["time"]["max"]):
+            if not path.isfile(filename):
+                self.cumulative_visits = self._update_cell_heat(time_index)
+            else:
+                self.cumulative_visits = read_pickle(filename)
+            yield
 
-    def delta_heat(self, time_index):
+    def _update_cell_heat(time_index):
+        delta_heat_of_cells = self._delta_heat(time_index)
+        cumulative_at_t = pd.concat(
+            [self.cumulative_visits, cell_visits_t], axis=1
+        ).sum(axis=1)
+        cumulative_at_t.to_pickle(filename)
+        return cumulative_at_t
+
+    def _delta_heat(self, time_index):
         return (
             self.concatenated_activities[
                 self.concatenated_activities.index == time_index
