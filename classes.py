@@ -15,62 +15,67 @@ class Animation:
         self.grid = self.heatmap.grid.empty
 
     def plot_frame(self, t):
-
-        # https://pythonspeed.com/articles/numpy-memory-footprint/
-        data = pd.read_pickle(self.heatmap.filenames[t])
-        inds = [list(i) for i in zip(*data.index)]
-
-        data = sparse.COO(data)
-        return data
+        pass
 
 
 class Heatmap:
-    def __init__(self, data_dir):
 
-        self.activities = Activities(data_dir)
-        self.time_evol_dir = path.join("data", data_dir, "time_evol")
-        if not path.exists(self.time_evol_dir):
-            makedirs(self.time_evol_dir)
-        self.grid = self.activities.grid
-        self.fname_len = len(str(self.grid.span["time"]))
-        self.df_all = pd.concat(
-            pd.read_pickle(fname) for fname in self.activities.filenames
-        )
-        self.cumulative_visits = (
-            self.df_all[self.df_all.index == 0][["lat_inds", "lon_inds"]]
-            .groupby(["lat_inds", "lon_inds"])
-            .size()
-        )
-        for t in range(1, self.grid.span["time"]):
-            filename = path.join(
-                self.time_evol_dir, str(t).zfill(self.fname_len) + ".pickle"
-            )
-            if not path.isfile(filename):
-                if t % 10 == 0:
-                    print(t)
-                self.step_cumulative_visits(t, filename)
-        self.filenames = glob(path.join(self.time_evol_dir, "*.pickle"))
+    time_evolution_dir = path.join("data", "time_evolved_data")
 
-    def update_grid(self):
+    def __init__(self, *activities):
 
-        self.grid = Grid(self.filenames)
-        self._add_grid_indices()
+        self.activities_objects = activities_objects
+        self.name = "".join(a.name for a in activities_objects)
+        self.dataframe_filenames = [
+            fname
+            for activity_obj in activities_objects
+            for fname in activity_obj.dataframe_filenames
+        ]
+        self.activity_dataframes = [
+            pd.read_pickle(fname) for fname in self.dataframe_filenames
+        ]
+        self.concatenated_activities = pd.concat(self.activity_dataframes)
+        self.grid = Grid(self.activity_dataframes)
+        self.add_grid_to_activities()
+        self.time_evolve_cumulative_heat()
 
-    def _add_grid_indices(self):
-        for fname in self.filenames:
-            df = pd.read_pickle(fname)
+
+    def add_grid_to_activities(self):
+        for i, df in enumerate(self.activity_dataframes):
             df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_grid_indices(
                 df["latitude"], df["longitude"]
             )
-            df.to_pickle(fname)
+            self.activity_dataframes[i] = df
 
-    def step_cumulative_visits(self, t, filename):
-        df_t = self.df_all[self.df_all.index == t][["lat_inds", "lon_inds"]]
-        cell_visits_t = df_t.groupby(["lat_inds", "lon_inds"]).size()
-        self.cumulative_visits = pd.concat(
-            [self.cumulative_visits, cell_visits_t], axis=1
-        ).sum(axis=1)
-        self.cumulative_visits.to_pickle(filename)
+    def time_evolve_cumulative_heat(self):
+        filenames = [
+            os.path.join(
+                self.time_evolution_dir, "".join([self.name, "_", str(i), ".pickle"])
+            )
+            for i in span["time"]["max"]
+        ]
+        for t, fname in enumerate(filenames):
+            _step_cumulative_heat(t, fname)
+        return cumulative_visits
+
+    def _step_cumulative_heat(self, t, filename):
+        if not path.isfile(filename):
+            delta_heat_of_cells = self.delta_heat(t)
+            self.cumulative_visits = pd.concat(
+                [self.cumulative_visits, cell_visits_t], axis=1
+            ).sum(axis=1)
+            self.cumulative_visits.to_pickle(filename)
+        else:
+            self.cumulative_visits = read_pickle(filename)
+
+    def delta_heat(self, time_index):
+        return (
+            self.concatenated_activities[
+                self.concatenated_activities.index == time_index
+            ][["lat_inds", "lon_inds"]]
+            .groupby(["lat_inds", "lon_inds"])
+            .size()
+        )
 
     def animate():
         pass
@@ -95,9 +100,9 @@ class Activities:
         self._setup_directory_structure()
         self._create_dataframes()
 
-        self.filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
+        self.dataframe_filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
         assert (
-            self.filenames
+            self.dataframe_filenames
         ), "No GPS data found found. Place .gpx/.tcx files in {}".format(
             path.join("data", name)
         )
@@ -118,28 +123,31 @@ class Activities:
         Process and convert raw GPS data with extension ".gpx" or 
         ".tcx" to a pandas dataframe, and save as a .pickle file.
         """
-
-        files = glob(path.join(self.raw_data_path, "*." + ext))
-        for i, raw_data_path in enumerate(files):
-            dataframe_basename = self.name + path.basename(
-                raw_data_path.replace(ext, "pickle")
-            )
-            dataframe_path = path.join(self.pickle_path, dataframe_basename)
+        raw_data_paths, df_paths = _construct_file_paths_by_extension(ext)
+        for raw_data_path, dataframe_path in zip(raw_data_paths, df_paths):
             if not path.isfile(df_path):
                 convert.convert_raw(raw_data_path, dataframe_path)
 
+    def _construct_file_paths_by_extension(ext):
+        raw_data_paths = glob(path.join(self.raw_data_path, "*." + ext))
+        df_basenames = [
+            "_".join([self.name, ext, str(i)]) for i in range(len(raw_data_paths))
+        ]
+        df_paths = [os.path.join(self.pickle_path, base) for base in df_basenames]
+        return raw_data_paths, df_paths
+
 
 class Grid:
-    def __init__(self, activity_filenames, cell_size_m=10):
+    def __init__(self, activities, cell_size_m=10):
 
-        self.activity_filenames = activity_filenames
+        self.activities = activities
         self.cell_size_m = cell_size_m
-        self.set_spacetime_properties()
+        self.set_grid_properties()
         self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
 
-    def set_spacetime_properties(self, margin_size=0.05):
+    def set_grid_properties(self, margin_size=0.05):
 
-        df_all = pd.concat(pd.read_pickle(fname) for fname in self.activity_filenames)
+        df_all = pd.concat(self.activities)
         span_no_margin = _span_no_margin(df_all)
 
         self.cell_size_deg = geo.cell_size_deg(
@@ -196,7 +204,7 @@ class Grid:
                 self.cell_size_deg["lon"],
                 self.num_cells["lon"],
             ),
-            "time": span_no_margin["time"]
+            "time": span_no_margin["time"],
         }
         return span
 
@@ -209,9 +217,15 @@ class Grid:
 
 # j = Activities("Jack")
 # t = Activities("Tenzin")
-# hm = Heatmap("Jack", "Tenzin")
-# a = Activities("Anika")
-# hm.add(a)
-# hm.update_grid()
-# hm.animate()
+# hm = Heatmap(j, t)
+# hm.animate()              # animates concurrently
 # hm.plot_final_frame()
+
+# //
+# j = Activities("Jack")
+# t = Activities("Tenzin")
+# hm = Heatmap(j, t)
+# hm.append_frames(j)
+# hm.plot_final_frame()
+# hm.append_frames(t)
+# hm.animate()              # animates j followed by t
