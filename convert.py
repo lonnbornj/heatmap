@@ -11,10 +11,11 @@ from geometry import add_speed_column
 
 def convert_raw(raw_data_path, dataframe_path):
     print("processing {}".format(path.basename(raw_data_path)))
+    _, ext = path.splitext(raw_data_path)
     df = (
-        convert.gpx_to_dataframe(raw_data_path)
-        if ext == "gpx"
-        else convert.tcx_to_dataframe(raw_data_path)
+        gpx_to_dataframe(raw_data_path)
+        if ext == ".gpx"
+        else tcx_to_dataframe(raw_data_path)
     )
     if df is None:
         rename(
@@ -22,7 +23,7 @@ def convert_raw(raw_data_path, dataframe_path):
             path.join(self.excluded_raw_data, path.basename(raw_data_path)),
         )
     else:
-        df.to_pickle(df_path)
+        df.to_pickle(dataframe_path)
 
 
 def gpx_to_dataframe(filename):

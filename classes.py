@@ -20,9 +20,9 @@ class Animation:
 
 class Heatmap:
 
-    time_evolution_dir = path.join("data", "time_evolved_data")
+    time_evolution_dir = os.path.join("data", "time_evolved_data")
 
-    def __init__(self, *activities):
+    def __init__(self, *activities_objects):
 
         self.activities_objects = activities_objects
         self.name = "".join(a.name for a in activities_objects)
@@ -37,7 +37,7 @@ class Heatmap:
         self.concatenated_activities = pd.concat(self.activity_dataframes)
         self.grid = Grid(self.activity_dataframes)
         self.add_grid_to_activities()
-        self.time_evolve_cumulative_heat()
+        self.time_evolve()
 
 
     def add_grid_to_activities(self):
@@ -47,7 +47,7 @@ class Heatmap:
             )
             self.activity_dataframes[i] = df
 
-    def time_evolve_cumulative_heat(self):
+    def time_evolve(self):
         filenames = [
             os.path.join(
                 self.time_evolution_dir, "".join([self.name, "_", str(i), ".pickle"])
@@ -56,20 +56,19 @@ class Heatmap:
         ]
         for t, fname in enumerate(filenames):
             _next_cumulative_heat(t, fname)
-        return cumulative_visits
 
     def _next_cumulative_heat(self, filename):
         for time_index in range(self.grid.span["time"]["max"]):
-            if not path.isfile(filename):
-                self.cumulative_visits = self._update_cell_heat(time_index)
+            if not os.path.isfile(filename):
+                self.cumulative_cell_heat = self._update_cell_heat(time_index)
             else:
-                self.cumulative_visits = read_pickle(filename)
+                self.cumulative_cell_heat = read_pickle(filename)
             yield
 
     def _update_cell_heat(time_index):
         delta_heat_of_cells = self._delta_heat(time_index)
-        cumulative_at_t = pd.concat(
-            [self.cumulative_visits, cell_visits_t], axis=1
+        cumulative_at_t = pd.concat(e
+            [self.cumulative_cell_heat, cell_visits_t], axis=1
         ).sum(axis=1)
         cumulative_at_t.to_pickle(filename)
         return cumulative_at_t
@@ -94,34 +93,34 @@ class Activities:
     processed a .gpx or .tcx file containing raw GPS data.
     """
 
-    pickle_path = path.join("data", "pickles")
+    pickle_path = os.path.join("data", "pickles")
 
     def __init__(self, name):
 
         self.name = name
-        self.raw_data_path = path.join("data", self.name, "raw")
-        self.excluded_raw_data = path.join(self.raw_data_path, "exclude")
+        self.raw_data_path = os.path.join("data", self.name, "raw")
+        self.excluded_raw_data = os.path.join(self.raw_data_path, "exclude")
         self.raw_file_types = ["gpx", "tcx"]
 
         self._setup_directory_structure()
         self._create_dataframes()
 
-        self.dataframe_filenames = glob(path.join(self.pickle_path, name + "*.pickle"))
+        self.dataframe_filenames = glob(os.path.join(self.pickle_path, name + "*.pickle"))
         assert (
             self.dataframe_filenames
         ), "No GPS data found found. Place .gpx/.tcx files in {}".format(
-            path.join("data", name)
+            os.path.join("data", name)
         )
 
     def _setup_directory_structure(self):
         for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
-            if not path.exists(d):
-                makedirs(d)
+            if not os.path.exists(d):
+                os.makedirs(d)
 
-    def _create_dataframes():
+    def _create_dataframes(self):
         for extension in self.raw_file_types:
-            for f in glob(path.join("data", name, "*." + extension)):
-                rename(f, path.join(self.raw_data_path, path.basename(f)))
+            for f in glob(os.path.join("data", self.name, "*." + extension)):
+                os.rename(f, os.path.join(self.raw_data_path, os.path.basename(f)))
             self._pickle_raw_gps_data(extension)
 
     def _pickle_raw_gps_data(self, ext, low_speed_threshold=1):
@@ -129,15 +128,15 @@ class Activities:
         Process and convert raw GPS data with extension ".gpx" or 
         ".tcx" to a pandas dataframe, and save as a .pickle file.
         """
-        raw_data_paths, df_paths = _construct_file_paths_by_extension(ext)
+        raw_data_paths, df_paths = self._construct_file_paths_by_extension(ext)
         for raw_data_path, dataframe_path in zip(raw_data_paths, df_paths):
-            if not path.isfile(df_path):
+            if not os.path.isfile(dataframe_path):
                 convert.convert_raw(raw_data_path, dataframe_path)
 
-    def _construct_file_paths_by_extension(ext):
-        raw_data_paths = glob(path.join(self.raw_data_path, "*." + ext))
+    def _construct_file_paths_by_extension(self, ext):
+        raw_data_paths = glob(os.path.join(self.raw_data_path, "*." + ext))
         df_basenames = [
-            "_".join([self.name, ext, str(i)]) for i in range(len(raw_data_paths))
+            "_".join([self.name, ext, str(i)]) + ".pickle" for i in range(len(raw_data_paths))
         ]
         df_paths = [os.path.join(self.pickle_path, base) for base in df_basenames]
         return raw_data_paths, df_paths
@@ -221,17 +220,8 @@ class Grid:
         )
 
 
-# j = Activities("Jack")
+t = Activities("test")
 # t = Activities("Tenzin")
 # hm = Heatmap(j, t)
 # hm.animate()              # animates concurrently
 # hm.plot_final_frame()
-
-# //
-# j = Activities("Jack")
-# t = Activities("Tenzin")
-# hm = Heatmap(j, t)
-# hm.append_frames(j)
-# hm.plot_final_frame()
-# hm.append_frames(t)
-# hm.animate()              # animates j followed by t
