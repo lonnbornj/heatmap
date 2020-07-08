@@ -5,6 +5,7 @@ import os
 import math
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
 import geometry as geo
 import convert
 
@@ -34,46 +35,47 @@ class Heatmap:
         self.activity_dataframes = [
             pd.read_pickle(fname) for fname in self.dataframe_filenames
         ]
-        self.concatenated_activities = pd.concat(self.activity_dataframes)
         self.grid = Grid(self.activity_dataframes)
-        self.add_grid_to_activities()
-        self.time_evolve()
+        self.activity_dataframes = self.add_grid_indices_to_activities()
+        self.concatenated_activities = pd.concat(self.activity_dataframes)
+        self.time_evolve_map()
 
 
-    def add_grid_to_activities(self):
+    def add_grid_indices_to_activities(self):
         for i, df in enumerate(self.activity_dataframes):
             df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_grid_indices(
                 df["latitude"], df["longitude"]
             )
             self.activity_dataframes[i] = df
+        return self.activity_dataframes
 
-    def time_evolve(self):
+    def time_evolve_map(self):
         filenames = [
             os.path.join(
                 self.time_evolution_dir, "".join([self.name, "_", str(i), ".pickle"])
             )
-            for i in span["time"]["max"]
+            for i in range(self.grid.span["time"]["max"] + 1)
         ]
+        self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
-            _next_cumulative_heat(t, fname)
+            self.next_cumulative_heat(t, fname)
 
-    def _next_cumulative_heat(self, filename):
-        for time_index in range(self.grid.span["time"]["max"]):
-            if not os.path.isfile(filename):
-                self.cumulative_cell_heat = self._update_cell_heat(time_index)
-            else:
-                self.cumulative_cell_heat = read_pickle(filename)
-            yield
+    def next_cumulative_heat(self, time_index, filename):
+        if not os.path.isfile(filename):
+            self.cumulative_cell_heat = self.update_cell_heat(time_index)
+            self.cumulative_cell_heat.to_pickle(filename)
+        else:
+            self.cumulative_cell_heat = read_pickle(filename)
+        return
 
-    def _update_cell_heat(time_index):
-        delta_heat_of_cells = self._delta_heat(time_index)
-        cumulative_at_t = pd.concat(e
-            [self.cumulative_cell_heat, cell_visits_t], axis=1
+    def update_cell_heat(self, time_index):
+        delta_heat_of_cells = self.delta_heat(time_index)
+        cumulative_at_t = pd.concat(
+            [self.cumulative_cell_heat, delta_heat_of_cells], axis=1
         ).sum(axis=1)
-        cumulative_at_t.to_pickle(filename)
         return cumulative_at_t
 
-    def _delta_heat(self, time_index):
+    def delta_heat(self, time_index):
         return (
             self.concatenated_activities[
                 self.concatenated_activities.index == time_index
@@ -102,8 +104,8 @@ class Activities:
         self.excluded_raw_data = os.path.join(self.raw_data_path, "exclude")
         self.raw_file_types = ["gpx", "tcx"]
 
-        self._setup_directory_structure()
-        self._create_dataframes()
+        self.setup_directory_structure()
+        self.create_dataframes()
 
         self.dataframe_filenames = glob(os.path.join(self.pickle_path, name + "*.pickle"))
         assert (
@@ -112,28 +114,28 @@ class Activities:
             os.path.join("data", name)
         )
 
-    def _setup_directory_structure(self):
+    def setup_directory_structure(self):
         for d in [self.raw_data_path, self.pickle_path, self.excluded_raw_data]:
             if not os.path.exists(d):
                 os.makedirs(d)
 
-    def _create_dataframes(self):
+    def create_dataframes(self):
         for extension in self.raw_file_types:
             for f in glob(os.path.join("data", self.name, "*." + extension)):
                 os.rename(f, os.path.join(self.raw_data_path, os.path.basename(f)))
-            self._pickle_raw_gps_data(extension)
+            self.pickle_raw_gps_data(extension)
 
-    def _pickle_raw_gps_data(self, ext, low_speed_threshold=1):
+    def pickle_raw_gps_data(self, ext, low_speed_threshold=1):
         """
         Process and convert raw GPS data with extension ".gpx" or 
         ".tcx" to a pandas dataframe, and save as a .pickle file.
         """
-        raw_data_paths, df_paths = self._construct_file_paths_by_extension(ext)
+        raw_data_paths, df_paths = self.construct_file_paths_by_extension(ext)
         for raw_data_path, dataframe_path in zip(raw_data_paths, df_paths):
             if not os.path.isfile(dataframe_path):
                 convert.convert_raw(raw_data_path, dataframe_path)
 
-    def _construct_file_paths_by_extension(self, ext):
+    def construct_file_paths_by_extension(self, ext):
         raw_data_paths = glob(os.path.join(self.raw_data_path, "*." + ext))
         df_basenames = [
             "_".join([self.name, ext, str(i)]) + ".pickle" for i in range(len(raw_data_paths))
@@ -153,13 +155,12 @@ class Grid:
     def set_grid_properties(self, margin_size=0.05):
 
         df_all = pd.concat(self.activities)
-        span_no_margin = _span_no_margin(df_all)
-
+        span_no_margin = self.compute_span_no_margin(df_all)
         self.cell_size_deg = geo.cell_size_deg(
             self.cell_size_m, latitude=np.mean([*span_no_margin["lat"].values()])
         )
-        self.num_cells = _num_cells(span_no_margin, margin_size, self.cell_size_deg)
-        self.span = _span_with_margin(span_no_margin, margin_size)
+        self.num_cells = self.compute_num_cells(span_no_margin, margin_size)
+        self.span = self.compute_span_with_margin(span_no_margin, margin_size)
 
     def latlon_to_grid_indices(self, lats, lons):
 
@@ -173,17 +174,18 @@ class Grid:
         lon_inds = np.floor(dlons / self.cell_size_deg["lon"]).astype(int)
         return lat_inds, lon_inds
 
-    def _num_cells(span_no_margin, margin_size, cell_size_deg):
+    def compute_num_cells(self, span_no_margin, margin_size):
+        dlat, dlon = self.latlon_delta(span_no_margin)
         return {
             "lat": np.ceil(
                 (1 + 2 * margin_size) * dlat / self.cell_size_deg["lat"]
             ).astype(int),
-            "lon": np.ceil((1 + 2 * margin_size) * dlon / cell_size_deg["lon"]).astype(
+            "lon": np.ceil((1 + 2 * margin_size) * dlon / self.cell_size_deg["lon"]).astype(
                 int
             ),
         }
 
-    def _span_no_margin(df_all):
+    def compute_span_no_margin(self, df_all):
         span = dict()
         span["lat"] = {"min": df_all["latitude"].min(), "max": df_all["latitude"].max()}
         span["lon"] = {
@@ -193,11 +195,11 @@ class Grid:
         span["time"] = {"min": 0, "max": df_all.index.max()}
         return span
 
-    def _span_with_margin(span_no_margin, margin_size):
+    def compute_span_with_margin(self, span_no_margin, margin_size):
         def get_1d_span(minimum, cell_size, num_cells):
             return {"min": minimum, "max": minimum + cell_size * num_cells}
 
-        dlat, dlon = self._latlon_delta(span_no_margin)
+        dlat, dlon = self.latlon_delta(span_no_margin)
         span = {
             "lat": get_1d_span(
                 span_no_margin["lat"]["min"] - margin_size * dlat,
@@ -213,7 +215,7 @@ class Grid:
         }
         return span
 
-    def _latlon_delta(span):
+    def latlon_delta(self, span):
         return (
             np.abs(span["lat"]["max"] - span["lon"]["min"]),
             np.abs(span["lon"]["max"] - span["lon"]["min"]),
@@ -222,6 +224,6 @@ class Grid:
 
 t = Activities("test")
 # t = Activities("Tenzin")
-# hm = Heatmap(j, t)
+hm = Heatmap(t)
 # hm.animate()              # animates concurrently
 # hm.plot_final_frame()

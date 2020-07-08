@@ -38,10 +38,10 @@ def dist_to_dlon(dist, dlat_mean):
     return math.degrees(2 * x)
 
 
-def cell_size_deg(latitude):
+def cell_size_deg(cell_size_m, latitude):
     return {
-        "lat": geo.dist_to_dlat(self.cell_size_m),
-        "lon": geo.dist_to_dlon(self.cell_size_m, latitude),
+        "lat": dist_to_dlat(cell_size_m),
+        "lon": dist_to_dlon(cell_size_m, latitude),
     }
 
 
