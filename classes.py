@@ -11,20 +11,22 @@ import convert
 
 
 class Animation:
-    def __init__(self, grid, ):
+    def __init__(self, heatmap):
         self.heatmap = heatmap
-        self.grid = self.heatmap.grid.empty
+        self.image = self.heatmap.grid.empty
 
     def plot_frame(self, t):
-        # heatmap.next_cumulative_heat
-        pass
+        lat_inds, lon_inds = [pair for pair in zip(*self.heatmap.data[t].index)]
+        self.image[lat_inds, lon_inds] += self.heatmap.data[t].values
+        plt.imshow(self.image)
+        plt.show()
 
 
 class Heatmap:
 
     heatmap_data_dir = os.path.join("data", "heatmap")
     if not os.path.exists(heatmap_data_dir):
-    	os.makedirs(heatmap_data_dir)
+        os.makedirs(heatmap_data_dir)
 
     def __init__(self, *activities_objects):
 
@@ -63,9 +65,7 @@ class Heatmap:
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
             self.next_cumulative_heat(t, fname)
-            print(t)
-            print(self.cumulative_cell_heat)
-            self.data[t] = self.cumulative_cell_heat
+            self.data[t] = self.cumulative_cell_heat.copy()
 
     def next_cumulative_heat(self, time_index, filename):
         if not os.path.isfile(filename):
@@ -78,7 +78,7 @@ class Heatmap:
         delta_heat_of_cells = self.delta_heat(time_index)
         cumulative_at_t = pd.concat(
             [self.cumulative_cell_heat, delta_heat_of_cells], axis=1
-        ).sum(axis=1)
+        ).sum(axis=1).astype(np.uint16)
         return cumulative_at_t
 
     def delta_heat(self, time_index):
@@ -229,5 +229,8 @@ class Grid:
 t = Activities("test")
 # t = Activities("Tenzin")
 hm = Heatmap(t)
+a = Animation(hm)
+
+a.plot_frame(3)
 # hm.animate()              # animates concurrently
 # hm.plot_final_frame()
