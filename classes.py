@@ -149,16 +149,16 @@ class Activities:
 
 
 class Grid:
-    def __init__(self, activities, cell_size_m=10):
+    def __init__(self, activity_dataframes, cell_size_m=10):
 
-        self.activities = activities
+        self.activity_dataframes = activity_dataframes
         self.cell_size_m = cell_size_m
         self.set_grid_properties()
         self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
 
     def set_grid_properties(self, margin_size=0.05):
 
-        df_all = pd.concat(self.activities)
+        df_all = pd.concat(self.activity_dataframes)
         span_no_margin = self.compute_span_no_margin(df_all)
         self.cell_size_deg = geo.cell_size_deg(
             self.cell_size_m, latitude=np.mean([*span_no_margin["lat"].values()])
@@ -221,7 +221,7 @@ class Grid:
 
     def latlon_delta(self, span):
         return (
-            np.abs(span["lat"]["max"] - span["lon"]["min"]),
+            np.abs(span["lat"]["max"] - span["lat"]["min"]),
             np.abs(span["lon"]["max"] - span["lon"]["min"]),
         )
 
