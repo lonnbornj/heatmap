@@ -48,6 +48,8 @@ def cell_size_deg(cell_size_m, latitude):
 def add_speed_column(df):
 
     # todo: work out what the reindexing is doing and move it out of this fn
+    # todo: factor out computation of speed, and move out addition of speed column to
+    # convert.py
     df["time"] = pd.to_datetime(df["time"])
     df = df.set_index("time")
     columns = df.columns.tolist()
