@@ -11,17 +11,20 @@ import convert
 
 
 class Animation:
-    def __init__(self, heatmap):
+    def __init__(self, grid, ):
         self.heatmap = heatmap
         self.grid = self.heatmap.grid.empty
 
     def plot_frame(self, t):
+        # heatmap.next_cumulative_heat
         pass
 
 
 class Heatmap:
 
-    time_evolution_dir = os.path.join("data", "time_evolved_data")
+    heatmap_data_dir = os.path.join("data", "heatmap")
+    if not os.path.exists(heatmap_data_dir):
+    	os.makedirs(heatmap_data_dir)
 
     def __init__(self, *activities_objects):
 
@@ -38,6 +41,7 @@ class Heatmap:
         self.grid = Grid(self.activity_dataframes)
         self.activity_dataframes = self.add_grid_indices_to_activities()
         self.concatenated_activities = pd.concat(self.activity_dataframes)
+        self.data = dict()
         self.time_evolve_map()
 
 
@@ -52,21 +56,23 @@ class Heatmap:
     def time_evolve_map(self):
         filenames = [
             os.path.join(
-                self.time_evolution_dir, "".join([self.name, "_", str(i), ".pickle"])
+                self.heatmap_data_dir, "".join([self.name, "_", str(i), ".pickle"])
             )
             for i in range(self.grid.span["time"]["max"] + 1)
         ]
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
             self.next_cumulative_heat(t, fname)
+            print(t)
+            print(self.cumulative_cell_heat)
+            self.data[t] = self.cumulative_cell_heat
 
     def next_cumulative_heat(self, time_index, filename):
         if not os.path.isfile(filename):
             self.cumulative_cell_heat = self.update_cell_heat(time_index)
             self.cumulative_cell_heat.to_pickle(filename)
         else:
-            self.cumulative_cell_heat = read_pickle(filename)
-        return
+            self.cumulative_cell_heat = pd.read_pickle(filename)
 
     def update_cell_heat(self, time_index):
         delta_heat_of_cells = self.delta_heat(time_index)
@@ -90,9 +96,7 @@ class Heatmap:
 
 class Activities:
     """
-    A collection of dataframes (saved as pickles), each of 
-    which is associated with an activity. Each dataframe is a 
-    processed a .gpx or .tcx file containing raw GPS data.
+    A collection of processed GPS data.
     """
 
     pickle_path = os.path.join("data", "pickles")
@@ -100,7 +104,7 @@ class Activities:
     def __init__(self, name):
 
         self.name = name
-        self.raw_data_path = os.path.join("data", self.name, "raw")
+        self.raw_data_path = os.path.join("data", self.name)
         self.excluded_raw_data = os.path.join(self.raw_data_path, "exclude")
         self.raw_file_types = ["gpx", "tcx"]
 
