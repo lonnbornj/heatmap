@@ -5,12 +5,6 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 import numpy as np
 
 
-x = np.linspace(0, 8 * np.pi, 1000)
-y = np.sin(x)
-
-fig = plt.figure()
-ax = plt.axes()
-
 
 class Animation:
     def __init__(self, blank_grid, data):
@@ -19,21 +13,29 @@ class Animation:
         self.num_frames = len(self.data)
 
     def animate(self):
+        fig = plt.figure()
+        ax = plt.axes()
         anim = animation.FuncAnimation(
-            fig, self.create_frame, np.arange(self.num_frames-2000), interval=1
+            fig, self.create_frame, frames = np.arange(self.num_frames), fargs=(ax,), interval=1
         )
         plt.show()
 
-    def create_frame(self, t):
+    def create_frame(self, t, ax):
         frame = self.blank_grid.copy()
         lat_inds, lon_inds, heat = self.get_latlon_heat(t)
         frame[lat_inds, lon_inds] += heat
-        # frame[lat_inds, lon_inds] = 1
         ax.clear()
         ax.imshow(frame)
-        ax.set_xlim([200, 500])
-        ax.set_ylim([1200, 1650])
-        # plt.show()
+        # ax.set_xlim([200, 500])
+        # ax.set_ylim([1200, 1650])
+        return ax
+
+    def plot_final_frame(self):
+        fig = plt.figure()
+        ax = plt.axes()
+        ax = self.create_frame(self.num_frames-1, ax)
+        plt.show()
+
 
     def get_latlon_heat(self, t):
         lat_inds, lon_inds = np.array([pair for pair in zip(*self.data[t].index)])
@@ -42,18 +44,6 @@ class Animation:
 
 
     def normalise(self, heat):
-    	cdf_of_heat = np.cumsum(np.bincount(heat))/heat.size
-    	return cdf_of_heat[heat]
+        cdf_of_heat = np.cumsum(np.bincount(heat))/heat.size
+        return cdf_of_heat[heat]
 
-
-
-    # def create_frame(self,t):
-    #     ax.clear()
-    #     ax.plot(x[0:t], np.sin(x[0:t]))
-    #     ax.set_xlim(0, x[-1])
-    #     ax.set_ylim([-1.1,1.1])
-
-
-# a=animation.FuncAnimation(fig, a.create_frame, arange(len(x)), interval=200)
-
-# plt.show()
