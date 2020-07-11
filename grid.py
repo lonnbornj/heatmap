@@ -34,7 +34,7 @@ class Grid:
         return lat_inds, lon_inds
 
     def compute_num_cells(self, span_no_margin, margin_size):
-        dlat, dlon = self.latlon_delta(span_no_margin)
+        dlat, dlon = self.compute_latlon_delta(span_no_margin)
         return {
             "lat": np.ceil(
                 (1 + 2 * margin_size) * dlat / self.cell_size_deg["lat"]
@@ -51,14 +51,14 @@ class Grid:
             "min": df_all["longitude"].min(),
             "max": df_all["longitude"].max(),
         }
-        span["time"] = {"min": 0, "max": df_all.index.max()-1}
+        span["time"] = {"min": 0, "max": df_all.index.max() - 1}
         return span
 
     def compute_span_with_margin(self, span_no_margin, margin_size):
         def get_1d_span(minimum, cell_size, num_cells):
             return {"min": minimum, "max": minimum + cell_size * num_cells}
 
-        dlat, dlon = self.latlon_delta(span_no_margin)
+        dlat, dlon = self.compute_latlon_delta(span_no_margin)
         span = {
             "lat": get_1d_span(
                 span_no_margin["lat"]["min"] - margin_size * dlat,
@@ -74,7 +74,7 @@ class Grid:
         }
         return span
 
-    def latlon_delta(self, span):
+    def compute_latlon_delta(self, span):
         return (
             np.abs(span["lat"]["max"] - span["lat"]["min"]),
             np.abs(span["lon"]["max"] - span["lon"]["min"]),

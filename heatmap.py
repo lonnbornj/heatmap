@@ -6,9 +6,8 @@ from grid import Grid
 
 class Heatmap:
 
-    heatmap_data_dir = os.path.join("data", "heatmap")
-    if not os.path.exists(heatmap_data_dir):
-        os.makedirs(heatmap_data_dir)
+    setup_manager = SetupManager()
+    pickle_path = setup_manager.heatmap_data_dir
 
     def __init__(self, *activities_objects):
 
@@ -37,12 +36,7 @@ class Heatmap:
         return self.activity_dataframes
 
     def time_evolve_map(self):
-        filenames = [
-            os.path.join(
-                self.heatmap_data_dir, "".join([self.name, "_", str(i), ".pickle"])
-            )
-            for i in range(self.grid.span["time"]["max"])
-        ]
+        filenames = self.setup_manager(construct_heatmap_filenames, self.span["time"]["max"])
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
             self.next_cumulative_heat(t, fname)
@@ -72,6 +66,3 @@ class Heatmap:
             .groupby(["lat_inds", "lon_inds"])
             .size()
         )
-
-    def animate():
-        pass

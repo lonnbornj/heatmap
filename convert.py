@@ -59,8 +59,7 @@ def tcx_to_dataframe(filename):
     speed = np.nan * np.ones([len(time), 1])
 
     df = pd.DataFrame(
-        zip(*[time, latitude, longitude, altitude]),
-        columns=["time", "latitude", "longitude"],
+        zip(*[time, latitude, longitude]), columns=["time", "latitude", "longitude"],
     )
 
     df = clean(df)
