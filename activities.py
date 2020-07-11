@@ -51,12 +51,3 @@ class Activities:
                 convert.convert_raw(
                     raw_data_path, self.excluded_raw_data, dataframe_path
                 )
-
-    def construct_file_paths_by_extension(self, ext):
-        raw_data_paths = glob(os.path.join(self.raw_data_path, "*." + ext))
-        df_basenames = [
-            "_".join([self.name, ext, str(i)]) + ".pickle"
-            for i in range(len(raw_data_paths))
-        ]
-        df_paths = [os.path.join(self.pickle_path, base) for base in df_basenames]
-        return raw_data_paths, df_paths
