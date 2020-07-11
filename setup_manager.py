@@ -3,7 +3,7 @@ import glob
 
 
 class SetupManager:
-    def __init__(self, data_root):
+    def __init__(self, data_root = "data"):
 
         self.data_root_dir = data_root
         self.activities_pickles_dir = os.path.join(self.data_root_dir, "pickles")
@@ -11,7 +11,7 @@ class SetupManager:
 
     def setup_directory_structure(self, name):
 
-        raw_data_dir = get_raw_data_dir(name)
+        raw_data_dir = self.get_raw_data_dir(name)
         excluded_raw_data = os.path.join(raw_data_dir, "excluded")
         directories = [
             self.activities_pickles_dir,
@@ -37,13 +37,13 @@ class SetupManager:
             for f in glob.glob(os.path.join(d, "*")):
                 os.remove(f)
 
-    def get_raw_data_dir(name):
+    def get_raw_data_dir(self, name):
         return os.path.join(self.data_root_dir, name)
 
-    def get_excluded_data_dir(name):
+    def get_excluded_data_dir(self, name):
         return os.path.join(self.data_root_dir, name, "excluded")
 
-    def construct_heatmap_filenames(name, max_time):
+    def construct_heatmap_filenames(self, name, max_time):
         return [
             os.path.join(self.heatmap_data_dir, "".join([name, "_", str(i), ".pickle"]))
             for i in range(max_time)
@@ -51,7 +51,7 @@ class SetupManager:
 
     def construct_activity_filenames(self, name, ext):
         raw_data_path = self.get_raw_data_dir(name)
-        raw_data_fnames = glob(os.path.join(self.raw_data_path, "*." + ext))
+        raw_data_fnames = glob.glob(os.path.join(raw_data_path, "*." + ext))
         df_basenames = [
             "_".join([name, ext, str(i)]) + ".pickle"
             for i in range(len(raw_data_fnames))
@@ -59,4 +59,4 @@ class SetupManager:
         df_paths = [
             os.path.join(self.activities_pickles_dir, base) for base in df_basenames
         ]
-        return raw_data_paths, df_paths
+        return raw_data_fnames, df_paths

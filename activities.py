@@ -17,8 +17,8 @@ class Activities:
 
         self.name = name
         self.setup_manager.setup_directory_structure(self.name)
-        self.raw_data_path = setup_manager.get_raw_data_dir()
-        self.excluded_raw_data = setup_manager.get_excluded_data_dir()
+        self.raw_data_path = self.setup_manager.get_raw_data_dir(self.name)
+        self.excluded_raw_data = self.setup_manager.get_excluded_data_dir(self.name)
 
         self.raw_file_types = ["gpx", "tcx"]
         self.create_dataframes()
@@ -44,7 +44,7 @@ class Activities:
         ".tcx" to a pandas dataframe and pickle.
         """
         raw_data_paths, df_paths = self.setup_manager.construct_activity_filenames(
-            name, ext
+            self.name, ext
         )
         for raw_data_path, dataframe_path in zip(raw_data_paths, df_paths):
             if not os.path.isfile(dataframe_path):

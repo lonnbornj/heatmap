@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from grid import Grid
+from setup_manager import SetupManager
 
 
 class Heatmap:
@@ -36,7 +37,7 @@ class Heatmap:
         return self.activity_dataframes
 
     def time_evolve_map(self):
-        filenames = self.setup_manager(construct_heatmap_filenames, self.span["time"]["max"])
+        filenames = self.setup_manager.construct_heatmap_filenames(self.name, self.grid.span["time"]["max"])
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
             self.next_cumulative_heat(t, fname)
