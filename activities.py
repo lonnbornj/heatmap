@@ -49,7 +49,9 @@ class Activities:
         raw_data_paths, df_paths = self.construct_file_paths_by_extension(ext)
         for raw_data_path, dataframe_path in zip(raw_data_paths, df_paths):
             if not os.path.isfile(dataframe_path):
-                convert.convert_raw(raw_data_path, dataframe_path)
+                convert.convert_raw(
+                    raw_data_path, self.excluded_raw_data, dataframe_path
+                )
 
     def construct_file_paths_by_extension(self, ext):
         raw_data_paths = glob(os.path.join(self.raw_data_path, "*." + ext))

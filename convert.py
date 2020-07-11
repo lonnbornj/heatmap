@@ -2,14 +2,14 @@ import pandas as pd
 import numpy as np
 import glob
 import shutil
-from os import path, makedirs
+from os import path, makedirs, rename
 import gpxpy
 import tcxparser
 
 from geometry import add_speed_column
 
 
-def convert_raw(raw_data_path, dataframe_path):
+def convert_raw(raw_data_path, excluded_raw_data, dataframe_path):
     print("processing {}".format(path.basename(raw_data_path)))
     _, ext = path.splitext(raw_data_path)
     df = (
@@ -19,8 +19,7 @@ def convert_raw(raw_data_path, dataframe_path):
     )
     if df is None:
         rename(
-            raw_data_path,
-            path.join(self.excluded_raw_data, path.basename(raw_data_path)),
+            raw_data_path, path.join(excluded_raw_data, path.basename(raw_data_path)),
         )
     else:
         df.to_pickle(dataframe_path)

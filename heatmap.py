@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import os
 from grid import Grid
 
@@ -40,7 +41,7 @@ class Heatmap:
             os.path.join(
                 self.heatmap_data_dir, "".join([self.name, "_", str(i), ".pickle"])
             )
-            for i in range(self.grid.span["time"]["max"] + 1)
+            for i in range(self.grid.span["time"]["max"])
         ]
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
@@ -59,7 +60,7 @@ class Heatmap:
         cumulative_at_t = (
             pd.concat([self.cumulative_cell_heat, delta_heat_of_cells], axis=1)
             .sum(axis=1)
-            .astype(np.uint16)
+            .astype(np.uint32)
         )
         return cumulative_at_t
 

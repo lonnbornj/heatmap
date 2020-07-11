@@ -51,7 +51,7 @@ class Grid:
             "min": df_all["longitude"].min(),
             "max": df_all["longitude"].max(),
         }
-        span["time"] = {"min": 0, "max": df_all.index.max()}
+        span["time"] = {"min": 0, "max": df_all.index.max()-1}
         return span
 
     def compute_span_with_margin(self, span_no_margin, margin_size):
