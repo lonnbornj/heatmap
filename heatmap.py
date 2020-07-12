@@ -14,30 +14,45 @@ class Heatmap:
 
         self.activities_objects = activities_objects
         self.name = "".join(a.name for a in activities_objects)
-        self.dataframe_filenames = [
+        dataframe_filenames = [
             fname
             for activity_obj in activities_objects
             for fname in activity_obj.dataframe_filenames
         ]
         self.activity_dataframes = [
-            pd.read_pickle(fname) for fname in self.dataframe_filenames
+            pd.read_pickle(fname) for fname in dataframe_filenames
         ]
+        # todo: add method to remove outlier activities,
+        # characterised by <mean(lat), mean(lon)>
+
         self.grid = Grid(self.activity_dataframes)
         self.activity_dataframes = self.add_grid_indices_to_activities()
         self.concatenated_activities = pd.concat(self.activity_dataframes)
         self.data = dict()
         self.time_evolve_map()
 
+    def remove_outlier_activities(self):
+        average_latlon = np.nan * np.ones(len(self.activity_dataframes), 2)
+        for i, df in enumerate(self.activity_dataframes):
+            average_latlon[i, :] = df.mean()
+
     def add_grid_indices_to_activities(self):
+        # todo: add hit to grids that get skipped because the subject
+        # is moving faster than the time resolution of the gps data.
         for i, df in enumerate(self.activity_dataframes):
             df["lat_inds"], df["lon_inds"] = self.grid.latlon_to_grid_indices(
                 df["latitude"], df["longitude"]
             )
+            df = self.fill_gaps_in_path(df)
             self.activity_dataframes[i] = df
         return self.activity_dataframes
 
+
     def time_evolve_map(self):
-        filenames = self.setup_manager.construct_heatmap_filenames(self.name, self.grid.span["time"]["max"])
+        print("evolving heatmap in time...")
+        filenames = self.setup_manager.construct_heatmap_filenames(
+            self.name, self.grid.span["time"]["max"]
+        )
         self.cumulative_cell_heat = pd.DataFrame()
         for t, fname in enumerate(filenames):
             self.next_cumulative_heat(t, fname)
@@ -67,3 +82,28 @@ class Heatmap:
             .groupby(["lat_inds", "lon_inds"])
             .size()
         )
+
+    def fill_gaps_in_path(self, df):
+
+        jump_mask = abs(df.diff()) != 1
+        if jump_mask.sum().sum() > 0:
+            fill_vals = self.find_gaps_in_path(df, jump_mask)
+            df = (
+                pd.concat([df, fill_vals])
+                .fillna(method="ffill")
+                .drop_duplicates()
+                .astype(np.uint32)
+            )
+        return df
+
+    def find_gaps_in_path(self, df, jump_mask):
+        max_cells_jumped = 4
+        fill_vals = pd.concat(
+            [
+                df.diff()[jump_mask] * i / max_cells_jumped
+                for i in range(1, max_cells_jumped)
+            ]
+        )
+        fill_vals = (df - fill_vals.round()).dropna(how="all")
+
+        return fill_vals

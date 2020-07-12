@@ -9,7 +9,7 @@ class Grid:
         self.activity_dataframes = activity_dataframes
         self.cell_size_m = cell_size_m
         self.set_grid_properties()
-        self.empty = np.zeros([*self.num_cells.values()], dtype=np.uint16)
+        self.empty = np.zeros([*self.num_cells.values()])
 
     def set_grid_properties(self, margin_size=0.05):
 

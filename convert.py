@@ -9,7 +9,8 @@ import tcxparser
 from geometry import add_speed_column
 
 
-def convert_raw(raw_data_path, excluded_raw_data, dataframe_path):
+def convert_raw(raw_data_path, excluded_raw_data):
+    # todo use SetupManager here instead of passing args
     print("processing {}".format(path.basename(raw_data_path)))
     _, ext = path.splitext(raw_data_path)
     df = (
@@ -17,12 +18,7 @@ def convert_raw(raw_data_path, excluded_raw_data, dataframe_path):
         if ext == ".gpx"
         else tcx_to_dataframe(raw_data_path)
     )
-    if df is None:
-        rename(
-            raw_data_path, path.join(excluded_raw_data, path.basename(raw_data_path)),
-        )
-    else:
-        df.to_pickle(dataframe_path)
+    return df
 
 
 def gpx_to_dataframe(filename):

@@ -19,21 +19,22 @@ class Animation:
         self.data = data
         self.num_frames = len(self.data)
 
-    def animate(self, save = False):
-        print("creating animation...")
-        fig = plt.figure()
-        ax = plt.axes()
+    def animate(self, save=False):
+        print("creating frames...")
         for t in range(self.num_frames):
-            ax = self.create_frame(t, ax)
-            # fig_fname = self.name + str(t).zfill(len(str(self.num_frames))) + ".png"
-            # fig.savefig(os.path.join(self.frames_dir, fig_fname))
-            # plt.show()
+            fig, ax = self.create_frame(t)
+            fig_fname = self.name + str(t).zfill(len(str(self.num_frames))) + ".png"
+            fig.savefig(os.path.join(self.frames_dir, fig_fname))
+            plt.close()
         images = []
-        for filename in sorted(glob.glob(os.path.join(self.frames_dir, '*.png'))):
+        for filename in sorted(
+            glob.glob(os.path.join(self.frames_dir, self.name + "*.png"))
+        ):
             images.append(imageio.imread(filename))
-        imageio.mimsave('test.gif', images)
+        print("saving animation...")
+        imageio.mimsave(self.name + ".gif", images)
 
-    def create_frame(self, t, ax):
+    def create_frame(self, t):
         fig = plt.figure()
         ax = plt.axes()
         frame = self.blank_grid.copy()
@@ -45,20 +46,17 @@ class Animation:
         cmap.set_bad(color="black")
         ax.clear()
         ax.imshow(frame, interpolation="none", cmap=cmap)
-        ax.set_xlim([400, 1000])
-        ax.set_ylim([1200, 1800])
+        # ax.set_xlim([400, 1000])
+        # ax.set_ylim([1200, 1800])
         # plt.show()
-        fig_fname = self.name + str(t).zfill(len(str(self.num_frames))) + ".png"
-        fig.savefig(os.path.join(self.frames_dir, fig_fname))
-        plt.close()
-        return ax
+        # fig_fname = self.name + str(t).zfill(len(str(self.num_frames))) + ".png"
+        # fig.savefig(os.path.join(self.frames_dir, fig_fname))
+        # plt.close()
+        return fig, ax
 
     def plot_final_frame(self):
-        fig = plt.figure()
-        ax = plt.axes()
-        ax = self.create_frame(self.num_frames - 1, ax)
+        fig, ax = self.create_frame(400)
         plt.show()
-        plt.savefig
 
     def get_latlon_heat(self, t):
         lat_inds, lon_inds = np.array([pair for pair in zip(*self.data[t].index)])
