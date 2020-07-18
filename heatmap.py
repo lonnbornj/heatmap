@@ -97,7 +97,8 @@ class Heatmap:
         return df
 
     def find_gaps_in_path(self, df, jump_mask):
-        max_cells_jumped = 4
+        max_cells_jumped = df.diff().max().max().astype(int)
+        print(max_cells_jumped)
         fill_vals = pd.concat(
             [
                 df.diff()[jump_mask] * i / max_cells_jumped

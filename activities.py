@@ -59,5 +59,4 @@ class Activities:
                         ),
                     )
                 else:
-                    df = self.fill_missing_steps(df)
                     df.to_pickle(dataframe_path)
